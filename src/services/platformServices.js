@@ -413,6 +413,123 @@ const createNeighborhood = async (
   }
 }
 
+const toggleZoneStatus = async (platform, cityName, zoneName, value) => {
+  try {
+    // Buscar o item pelo nome da plataforma
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    // Encontrar a cidade
+    const cityIndex = item.cities.findIndex((city) => city.city === cityName)
+    if (cityIndex === -1)
+      throw new Error(
+        `Cidade '${cityName}' não encontrada na plataforma '${platform}'`
+      )
+
+    // Verificar se a cidade tem zonas
+    if (!item.cities[cityIndex].zones) {
+      throw new Error(`Nenhuma zona encontrada na cidade '${cityName}'`)
+    }
+
+    // Encontrar a zona
+    const zoneIndex = item.cities[cityIndex].zones.findIndex(
+      (zone) => zone.name === zoneName
+    )
+    if (zoneIndex === -1)
+      throw new Error(
+        `Zona '${zoneName}' não encontrada na cidade '${cityName}'`
+      )
+
+    // Atualizar o status da zona
+    item.cities[cityIndex].zones[zoneIndex].active = value
+
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: `SET cities[${cityIndex}].zones[${zoneIndex}].active = :value`,
+      ExpressionAttributeValues: {
+        ':value': value
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
+const createZone = async (platform, cityName, zoneName, isActive) => {
+  try {
+    // Buscar o item pelo nome da plataforma
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    // Encontrar a cidade
+    const cityIndex = item.cities.findIndex((city) => city.city === cityName)
+    if (cityIndex === -1)
+      throw new Error(
+        `Cidade '${cityName}' não encontrada na plataforma '${platform}'`
+      )
+
+    // Verificar se a zona já existe
+    const zoneExists = item.cities[cityIndex].zones.some(
+      (zone) => zone.name === zoneName
+    )
+    if (zoneExists)
+      throw new Error(`Zona '${zoneName}' já existe na cidade '${cityName}'`)
+
+    // Criar nova zona
+    const newZone = {
+      active: isActive,
+      name: zoneName
+    }
+
+    // Adicionar a nova zona ao array de zonas
+    // Verifica se o array zones existe, se não, cria um novo
+    if (!item.cities[cityIndex].zones) {
+      item.cities[cityIndex].zones = []
+    }
+    item.cities[cityIndex].zones.push(newZone)
+
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: `SET cities[${cityIndex}].zones = :zones`,
+      ExpressionAttributeValues: {
+        ':zones': item.cities[cityIndex].zones
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
 module.exports = {
   getAllServices,
   updateStatusCity,
@@ -423,5 +540,7 @@ module.exports = {
   toggleNeighborhoodStatus,
   createNeighborhood,
   updateStatusService,
-  updateTimeCity
+  updateTimeCity,
+  toggleZoneStatus,
+  createZone
 }

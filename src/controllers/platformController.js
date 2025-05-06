@@ -7,8 +7,107 @@ const {
   updateStatusEmergencyCity,
   updateTimeEmergencyCity,
   toggleNeighborhoodStatus,
-  createNeighborhood
+  createNeighborhood,
+  createZone,
+  toggleZoneStatus
 } = require('../services/platformServices')
+
+const createNewZone = async (req, res) => {
+  try {
+    const { plataforma, cityName, zoneName, isActive } = req.body
+
+    // Validação dos parâmetros (isActive é opcional, padrão true)
+    if (!plataforma || !cityName || !zoneName) {
+      return res.status(400).json({
+        message:
+          'Parâmetros inválidos. Certifique-se de enviar: plataforma (string), cityName (string) e zoneName (string).'
+      })
+    }
+
+    // Se isActive não foi enviado, assume true
+    const activeStatus = typeof isActive === 'boolean' ? isActive : true
+
+    const newZone = await createZone(
+      plataforma,
+      cityName,
+      zoneName,
+      activeStatus
+    )
+
+    res.status(201).json({
+      message: `Zona criada com sucesso (${
+        activeStatus ? 'ativa' : 'inativa'
+      })`,
+      newZone
+    })
+  } catch (err) {
+    console.error('Erro ao criar zona:', err)
+
+    // Tratamento de erros específicos
+    if (
+      err.message.includes('Plataforma') ||
+      err.message.includes('Cidade') ||
+      err.message.includes('já existe')
+    ) {
+      return res.status(400).json({ message: err.message })
+    }
+
+    res.status(500).json({
+      message: 'Erro interno do servidor',
+      error: err.message
+    })
+  }
+}
+
+const handleToggleZoneStatus = async (req, res) => {
+  try {
+    const { plataforma, cityName, zoneName, activeStatus } = req.body
+
+    // Validação dos parâmetros
+    if (
+      !plataforma ||
+      !cityName ||
+      !zoneName ||
+      typeof activeStatus !== 'boolean'
+    ) {
+      return res.status(400).json({
+        message:
+          'Parâmetros inválidos. Certifique-se de enviar: plataforma (string), cityName (string), zoneName (string) e activeStatus (boolean).'
+      })
+    }
+
+    const updatedZone = await toggleZoneStatus(
+      plataforma,
+      cityName,
+      zoneName,
+      activeStatus
+    )
+
+    res.status(200).json({
+      message: activeStatus
+        ? 'Zona ativada com sucesso'
+        : 'Zona desativada com sucesso',
+      updatedZone
+    })
+  } catch (err) {
+    console.error('Erro ao alterar status da zona:', err)
+
+    // Tratamento de erros específicos
+    if (
+      err.message.includes('Plataforma') ||
+      err.message.includes('Cidade') ||
+      err.message.includes('Zona') ||
+      err.message.includes('Nenhuma zona encontrada')
+    ) {
+      return res.status(404).json({ message: err.message })
+    }
+
+    res.status(500).json({
+      message: 'Erro interno do servidor',
+      error: err.message
+    })
+  }
+}
 
 const createNewNeighborhood = async (req, res) => {
   try {
@@ -335,5 +434,7 @@ module.exports = {
   updateCityEmergencyStatus,
   handleUpdateTimeEmergencyCity,
   handleToggleNeighborhoodStatus,
-  createNewNeighborhood
+  createNewNeighborhood,
+  handleToggleZoneStatus,
+  createNewZone
 }

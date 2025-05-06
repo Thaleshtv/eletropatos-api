@@ -54,6 +54,14 @@ app.put(
 
 app.post('/neighborhood', verifyToken, platformController.createNewNeighborhood)
 
+app.post('/zone', verifyToken, platformController.createNewZone)
+
+app.put(
+  '/update-zone-status',
+  verifyToken,
+  platformController.handleToggleZoneStatus
+)
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
   res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
