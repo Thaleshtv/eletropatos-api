@@ -9,7 +9,11 @@ const {
   toggleNeighborhoodStatus,
   createNeighborhood,
   createZone,
-  toggleZoneStatus
+  toggleZoneStatus,
+  createHoliday,
+  deleteHoliday,
+  addBlockedService,
+  removeBlockedService
 } = require('../services/platformServices')
 
 const createNewZone = async (req, res) => {
@@ -216,7 +220,9 @@ const getServices = async (req, res) => {
     const reorganizedServices = services.map((service) => ({
       plataforma: service.plataforma,
       cities: service.cities,
-      services: service.services
+      services: service.services,
+      feriados: service.feriados,
+      servicos_bloqueados: service.servicos_bloqueados
     }))
 
     res.status(200).json(reorganizedServices)
@@ -425,6 +431,132 @@ const handleUpdateStatusAllCities = async (req, res) => {
   }
 }
 
+const handleCreateHoliday = async (req, res) => {
+  try {
+    const { plataforma, holidayName, holidayDate } = req.body
+
+    if (!plataforma || !holidayName || !holidayDate) {
+      return res.status(400).json({
+        message:
+          'Parâmetros inválidos. Certifique-se de enviar: plataforma (string), cityName (string), holidayName (string) e holidayDate (date).'
+      })
+    }
+
+    const newHoliday = await createHoliday(plataforma, holidayName, holidayDate)
+
+    res.status(201).json({
+      message: 'Feriado criado com sucesso',
+      newHoliday
+    })
+  } catch (err) {
+    console.error('Erro ao criar feriado:', err)
+
+    res.status(500).json({
+      message: 'Erro interno do servidor',
+      error: err.message
+    })
+  }
+}
+
+const handleDeleteHoliday = async (req, res) => {
+  try {
+    const { plataforma, holidayName, holidayDate } = req.body
+
+    if (!plataforma || !holidayName || !holidayDate) {
+      return res.status(400).json({
+        message: 'Parâmetros inválidos ou faltando'
+      })
+    }
+
+    const deletedHoliday = await deleteHoliday(
+      plataforma,
+      holidayName,
+      holidayDate
+    )
+
+    res.status(200).json({
+      message: 'Feriado deletado com sucesso',
+      deletedHoliday
+    })
+  } catch (err) {
+    console.error('Erro ao deletar feriado:', err)
+
+    res.status(500).json({
+      message: 'Erro interno do servidor',
+      error: err.message
+    })
+  }
+}
+
+const handleAddBlockedService = async (req, res) => {
+  try {
+    const { plataforma, serviceNumber } = req.body
+
+    if (!plataforma || !serviceNumber) {
+      return res.status(400).json({
+        message:
+          'Parâmetros inválidos. Certifique-se de enviar: plataforma (string) e serviceNumber (string).'
+      })
+    }
+
+    const updatedPlatform = await addBlockedService(plataforma, serviceNumber)
+
+    res.status(201).json({
+      message: 'Serviço bloqueado adicionado com sucesso',
+      updatedPlatform
+    })
+  } catch (err) {
+    console.error('Erro ao adicionar serviço bloqueado:', err)
+
+    const statusCode =
+      err.message.includes('não encontrada') ||
+      err.message.includes('já está bloqueado')
+        ? 400
+        : 500
+
+    res.status(statusCode).json({
+      message: 'Erro ao adicionar serviço bloqueado',
+      error: err.message
+    })
+  }
+}
+
+const handleRemoveBlockedService = async (req, res) => {
+  try {
+    const { plataforma, serviceNumber } = req.body
+
+    if (!plataforma || !serviceNumber) {
+      return res.status(400).json({
+        message:
+          'Parâmetros inválidos. Certifique-se de enviar: plataforma (string) e serviceNumber (string).'
+      })
+    }
+
+    const updatedPlatform = await removeBlockedService(
+      plataforma,
+      serviceNumber
+    )
+
+    res.status(200).json({
+      message: 'Serviço bloqueado removido com sucesso',
+      updatedPlatform
+    })
+  } catch (err) {
+    console.error('Erro ao remover serviço bloqueado:', err)
+
+    const statusCode =
+      err.message.includes('não encontrada') ||
+      err.message.includes('não encontrado na lista')
+        ? 400
+        : 500
+
+    res.status(statusCode).json({
+      message: 'Erro ao remover serviço bloqueado',
+      error: err.message
+    })
+  }
+}
+
 module.exports = {
   getServices,
   updateCityStatus,
@@ -436,5 +568,9 @@ module.exports = {
   handleToggleNeighborhoodStatus,
   createNewNeighborhood,
   handleToggleZoneStatus,
-  createNewZone
+  createNewZone,
+  handleCreateHoliday,
+  handleDeleteHoliday,
+  handleAddBlockedService,
+  handleRemoveBlockedService
 }

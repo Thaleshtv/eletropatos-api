@@ -530,6 +530,193 @@ const createZone = async (platform, cityName, zoneName, isActive) => {
   }
 }
 
+const createHoliday = async (platform, holidayName, holidayDate) => {
+  try {
+    // Buscar o item pelo nome da plataforma
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    // Verificar se o HOLIDAY já existe DATA E NOME
+    const holidayExists = item.feriados.some(
+      (holiday) => holiday.nome === holidayName && holiday.data === holidayDate
+    )
+
+    if (holidayExists)
+      throw new Error('Feriado já cadastrado com o mesmo nome ou data')
+
+    // Criar novo feriado
+    const newHoliday = {
+      nome: holidayName,
+      data: holidayDate
+    }
+
+    // Adicionar o novo feriado ao array de feriados
+    item.feriados.push(newHoliday)
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: 'SET feriados = :feriados',
+      ExpressionAttributeValues: {
+        ':feriados': item.feriados
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
+const deleteHoliday = async (platform, holidayName, holidayDate) => {
+  try {
+    // Buscar o item pelo nome da plataforma
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    // Verificar se o feriado existe
+    const holidayIndex = item.feriados.findIndex(
+      (holiday) => holiday.nome === holidayName && holiday.data === holidayDate
+    )
+
+    if (holidayIndex === -1) {
+      throw new Error('Feriado não encontrado com o nome e data fornecidos')
+    }
+
+    // Remover o feriado do array
+    item.feriados.splice(holidayIndex, 1)
+
+    // Atualizar o item no DynamoDB
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: 'SET feriados = :feriados',
+      ExpressionAttributeValues: {
+        ':feriados': item.feriados
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
+const addBlockedService = async (platform, serviceNumber) => {
+  try {
+    // Buscar o item pelo nome da plataforma
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    // Verificar se o serviço já está bloqueado
+    if (!item.servicos_bloqueados) {
+      item.servicos_bloqueados = [] // Inicializa o array se não existir
+    }
+
+    const serviceExists = item.servicos_bloqueados.includes(serviceNumber)
+
+    if (serviceExists) {
+      throw new Error('Número de serviço já está bloqueado')
+    }
+
+    // Adicionar o novo serviço bloqueado ao array
+    item.servicos_bloqueados.push(serviceNumber)
+
+    // Atualizar o item no DynamoDB
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: 'SET servicos_bloqueados = :servicos_bloqueados',
+      ExpressionAttributeValues: {
+        ':servicos_bloqueados': item.servicos_bloqueados
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
+const removeBlockedService = async (platform, serviceNumber) => {
+  try {
+    const command = new ScanCommand({
+      TableName: TABLE_SERVICES,
+      FilterExpression: 'plataforma = :platform',
+      ExpressionAttributeValues: {
+        ':platform': platform
+      }
+    })
+
+    const response = await db.send(command)
+    const item = response.Items[0]
+    if (!item) throw new Error(`Plataforma '${platform}' não encontrada`)
+
+    if (!item.servicos_bloqueados || item.servicos_bloqueados.length === 0) {
+      throw new Error('Nenhum serviço bloqueado encontrado')
+    }
+
+    const serviceIndex = item.servicos_bloqueados.indexOf(serviceNumber)
+
+    if (serviceIndex === -1) {
+      throw new Error('Número de serviço não encontrado na lista de bloqueados')
+    }
+
+    item.servicos_bloqueados.splice(serviceIndex, 1)
+
+    const updateCommand = new UpdateCommand({
+      TableName: TABLE_SERVICES,
+      Key: { plataforma: platform },
+      UpdateExpression: 'SET servicos_bloqueados = :servicos_bloqueados',
+      ExpressionAttributeValues: {
+        ':servicos_bloqueados': item.servicos_bloqueados
+      },
+      ReturnValues: 'UPDATED_NEW'
+    })
+
+    const updateResponse = await db.send(updateCommand)
+    return updateResponse.Attributes
+  } catch (err) {
+    console.error(err)
+    throw new Error(err.message)
+  }
+}
+
 module.exports = {
   getAllServices,
   updateStatusCity,
@@ -542,5 +729,9 @@ module.exports = {
   updateStatusService,
   updateTimeCity,
   toggleZoneStatus,
-  createZone
+  createZone,
+  createHoliday,
+  deleteHoliday,
+  addBlockedService,
+  removeBlockedService
 }

@@ -61,6 +61,18 @@ app.put(
   verifyToken,
   platformController.handleToggleZoneStatus
 )
+app.post('/holiday', verifyToken, platformController.handleCreateHoliday)
+app.delete('/holiday', verifyToken, platformController.handleDeleteHoliday)
+app.post(
+  '/blocked-services',
+  verifyToken,
+  platformController.handleAddBlockedService
+)
+app.delete(
+  '/blocked-services',
+  verifyToken,
+  platformController.handleRemoveBlockedService
+)
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
