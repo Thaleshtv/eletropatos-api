@@ -1,6 +1,6 @@
 org: thales123
-app: ${env:TABLE_NAME}-api
-service: ${env:TABLE_NAME}-api
+app: ${env:TABLE_NAME}-api2
+service: ${env:TABLE_NAME}-api2
 
 provider:
   name: aws
@@ -62,7 +62,7 @@ custom:
 functions:
   app:
     handler: src/handler.handler
-    timeout: 30
+    timeout: 25
     events:
       - httpApi:
           path: /{proxy+}
